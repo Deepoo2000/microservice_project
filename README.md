@@ -88,3 +88,4 @@ User Service ───► Database
 
 - <img width="1912" height="1102" alt="image" src="https://github.com/user-attachments/assets/8af4c593-9a3f-44af-8a48-77cb5e82e398" />
 
+<img width="1002" height="760" alt="image" src="https://github.com/user-attachments/assets/7efaab66-b531-4f83-976e-d52230261d6e" />
