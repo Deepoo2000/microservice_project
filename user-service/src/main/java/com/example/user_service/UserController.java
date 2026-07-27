@@ -1,6 +1,7 @@
 package com.example.user_service;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -8,18 +9,37 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/users")
 public class UserController {
 
-    @Autowired
-    private UserService userService;
+    private static final Logger logger =
+            LoggerFactory.getLogger(UserController.class);
+
+    private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
+    }
 
     @PostMapping
-    public ResponseEntity<User> createUser(@RequestBody User user) {
-        userService.registerUser(user); // Delegate to service layer
-        return ResponseEntity.ok(user);
+    public ResponseEntity<User> createUser(
+            @RequestBody User user) {
+
+        logger.info("Create user request received");
+
+        User createdUser = userService.registerUser(user);
+
+        return ResponseEntity.ok(createdUser);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUser(@PathVariable Long id) {
+    public ResponseEntity<User> getUser(
+            @PathVariable Long id) {
+
+        logger.info(
+                "Get user request received, userId={}",
+                id
+        );
+
         User user = userService.findById(id);
+
         return ResponseEntity.ok(user);
     }
 }

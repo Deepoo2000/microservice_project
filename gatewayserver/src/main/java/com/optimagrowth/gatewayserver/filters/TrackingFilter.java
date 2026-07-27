@@ -2,7 +2,6 @@ package com.optimagrowth.gatewayserver.filters;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.annotation.Order;
@@ -11,42 +10,59 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-@Order(1)
+import java.util.UUID;
+
 @Component
-public class TrackingFilter
-        implements GlobalFilter {
+@Order(1)
+public class TrackingFilter implements GlobalFilter {
+
     private static final Logger logger =
             LoggerFactory.getLogger(TrackingFilter.class);
-    @Autowired
-    FilterUtils filterUtils;
+
+    private final FilterUtils filterUtils;
+
+    public TrackingFilter(FilterUtils filterUtils) {
+        this.filterUtils = filterUtils;
+    }
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange,
                              GatewayFilterChain chain) {
-        HttpHeaders requestHeaders =
-                exchange.getRequest().getHeaders();
-        if (isCorrelationIdPresent(requestHeaders)) {
-            logger.debug(
-                    "tmx-correlation-id found in tracking filter: {}. ",
-                    filterUtils.getCorrelationId(requestHeaders));
+
+        HttpHeaders headers = exchange.getRequest().getHeaders();
+
+        String correlationId = filterUtils.getCorrelationId(headers);
+
+        if (correlationId == null || correlationId.isBlank()) {
+            correlationId = UUID.randomUUID().toString();
+
+            exchange = filterUtils.setCorrelationId(exchange, correlationId);
+
+            logger.info("Generated Correlation ID: {}", correlationId);
         } else {
-            String correlationID = generateCorrelationId();
-            exchange = filterUtils.setCorrelationId(exchange,
-                    correlationID);
-            logger.debug(
-                    "tmx-correlation-id generated in tracking filter: {}.",
-                    correlationID);
+            logger.info("Existing Correlation ID: {}", correlationId);
         }
-        return chain.filter(exchange);
-    }
-    private boolean isCorrelationIdPresent(HttpHeaders
-                                                   requestHeaders) {
-        if (filterUtils.getCorrelationId(requestHeaders) != null) {
-            return true;
-        } else {
-            return false;
+        ServerWebExchange mutatedExchange = exchange;
+
+        if (correlationId == null || correlationId.isBlank()) {
+            correlationId = generateCorrelationId();
+            mutatedExchange = filterUtils.setCorrelationId(exchange, correlationId);
         }
+
+        String finalCorrelationId = correlationId;
+        ServerWebExchange finalExchange = mutatedExchange;
+
+        finalExchange.getResponse().beforeCommit(() -> {
+            finalExchange.getResponse()
+                    .getHeaders()
+                    .set(FilterUtils.CORRELATION_ID, finalCorrelationId);
+
+            return Mono.empty();
+        });
+
+        return chain.filter(finalExchange);
     }
+
     private String generateCorrelationId() {
         return java.util.UUID.randomUUID().toString();
     }
